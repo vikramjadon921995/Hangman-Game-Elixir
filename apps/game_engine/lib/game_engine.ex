@@ -19,8 +19,12 @@ defmodule GameEngine do
     GenServer.call(engine, {:get_user_word})
   end
 
-  def guesses_allowed(engine) do
-    GenServer.call(engine, {:guesses_allowed, guesses})
+  def guesses_allowed(engine, number_of_guesses) do
+    GenServer.call(engine, {:guesses_allowed, number_of_guesses})
+  end
+
+  def state_of_engine(engine) do
+    GenServer.call(engine, {:state_of_engine})
   end
 
   ## Server API
@@ -31,12 +35,16 @@ defmodule GameEngine do
     {:ok, %{word: word, user_word: initial_user_word(word), guesses: @guesses, won: nil, lost: nil, matched_count: 0}}
   end
 
+  def handle_call({:state_of_engine}, _from, state) do
+    {:reply, state, state}
+  end
+
   def handle_call({:make_a_guess, guess}, _from, state) do
-    case more_guesses_allowed(guesses) do
+    case more_guesses_allowed(state[:guesses]) do
       true ->
         case String.contains?(state[:user_word], guess) do
           false ->
-            user_word = state[:word] |> String.graphemes |> Enum.with_index |> Enum.map(fn({x, index}) -> reveal_characters(x, index, state[:user_word]) end)  
+            user_word = state[:word] |> String.graphemes |> Enum.with_index |> Enum.map(fn({x, index}) -> reveal_characters(x, index, state[:user_word]) end)
             state = Map.put(state, :user_word, user_word)
             state = Map.put(state, :guesses, state[:guesses] - 1)
             case user_word |> Enum.any?(&(&1 == "_")) do
@@ -48,7 +56,7 @@ defmodule GameEngine do
                   true -> {:reply, "Good Guess!", state}
                   _ -> {:reply, "Bad Guess!", state}
                 end
-            end    
+            end
           _ ->
             {:reply, "Already guessed, please try again!", state}
         end
