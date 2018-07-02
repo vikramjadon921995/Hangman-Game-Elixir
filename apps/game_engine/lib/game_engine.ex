@@ -32,7 +32,7 @@ defmodule GameEngine do
   def init(:ok) do
     {:ok, dictionary} = DynamicSupervisor.start_child(DictionarySupervisor, Dictionary)
     word = Dictionary.fetch_word(dictionary)
-    {:ok, %{word: word, user_word: initial_user_word(word), guesses: @guesses, won: nil, lost: nil, matched_count: 0}}
+    {:ok, %{word: word, user_word: initial_user_word(word), guesses: max_guesses(), won: nil, lost: nil, matched_count: 0}}
   end
 
   def handle_call({:state_of_engine}, _from, state) do
@@ -42,27 +42,29 @@ defmodule GameEngine do
   def handle_call({:make_a_guess, guess}, _from, state) do
     case more_guesses_allowed(state[:guesses]) do
       true ->
-        case String.contains?(state[:user_word], guess) do
+        case String.contains?(state[:user_word], guess |> String.trim("\n")) do
           false ->
-            user_word = state[:word] |> String.graphemes |> Enum.with_index |> Enum.map(fn({x, index}) -> reveal_characters(x, index, state[:user_word]) end)
-            state = Map.put(state, :user_word, user_word)
+            user_word = state[:word] |> String.graphemes |> Enum.with_index |> Enum.map(fn({_x, index}) -> reveal_characters(guess, index, state[:user_word], state[:word]) end)
+
+            state = Map.put(state, :user_word, Enum.join(user_word, ""))
             state = Map.put(state, :guesses, state[:guesses] - 1)
+
             case user_word |> Enum.any?(&(&1 == "_")) do
               false ->
                 state = Map.put(state, :won, true)
-                {:reply, "You Won!", state}
+                {:reply, {:won, "Congratulations, you Won!"}, state}
               _ ->
-                case String.contains?(state[:word], guess) do
-                  true -> {:reply, "Good Guess!", state}
-                  _ -> {:reply, "Bad Guess!", state}
+                case String.contains?(state[:word], guess |> String.trim("\n")) do
+                  true -> {:reply, {:good_guess, "Good Guess!"}, state}
+                  _ -> {:reply, {:bad_guess, "Bad Guess!"}, state}
                 end
             end
           _ ->
-            {:reply, "Already guessed, please try again!", state}
+            {:reply, {:already_guessed, "Already guessed, please try again!"}, state}
         end
       _ ->
         state = Map.put(state, :lost, true)
-        {:reply, "You lost!", state}
+        {:reply, {:lost, "Sorry, you lost!"}, state}
     end
   end
 
@@ -78,6 +80,10 @@ defmodule GameEngine do
     String.length(word) |> (&String.duplicate("_", &1)).()
   end
 
+  defp max_guesses do
+    @guesses
+  end
+
   defp more_guesses_allowed(guesses) do
     case guesses > 0 do
       true ->
@@ -87,10 +93,10 @@ defmodule GameEngine do
     end
   end
 
-  defp reveal_characters(char, index, str) do
+  defp reveal_characters(char, index, str, original_str) do
     if String.at(str, index) == "_" do
-      case char == "a" do
-      	true -> "a"
+      case String.at(original_str, index) == char do
+      	true -> char
       	_ -> "_"
       end
     else

@@ -2,7 +2,31 @@ defmodule TextClient do
   use Application
 
   def start(_type, _args) do
-    IO.puts "Vikram is here!"
     GameSupervisor.start_link([])
+    start_game()
+    {:ok, self()}
+  end
+
+  defp start_game() do
+    IO.puts ""
+    IO.puts "Welcome to hangman game!"
+    {:ok, engine} = GameEngine.start_link([])
+    play(engine)
+  end
+
+  defp play(engine) do
+    state = GameEngine.state_of_engine(engine)
+    IO.puts "Word: #{state[:word]}"
+    IO.puts ""
+    IO.puts "#{state[:guesses]} guesses remaining."
+    IO.puts "UserWord: #{state[:user_word]}"
+    guess = IO.gets("Make a guess : ")
+    #guess = "a"
+    IO.puts "Your Guess: #{guess}"
+    {round_result, message} = GameEngine.make_a_guess(engine, guess)
+    IO.puts "Message: #{message}"
+    unless round_result == :won || round_result == :lost do
+      play(engine)
+    end
   end
 end
