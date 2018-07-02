@@ -1,7 +1,9 @@
+require IEx
+
 defmodule GameEngine do
   use GenServer
 
-  @guesses 7
+  @guesses 5
 
   ## Client API
 
@@ -40,32 +42,7 @@ defmodule GameEngine do
   end
 
   def handle_call({:make_a_guess, guess}, _from, state) do
-    case more_guesses_allowed(state[:guesses]) do
-      true ->
-        case String.contains?(state[:user_word], guess |> String.trim("\n")) do
-          false ->
-            user_word = state[:word] |> String.graphemes |> Enum.with_index |> Enum.map(fn({_x, index}) -> reveal_characters(guess, index, state[:user_word], state[:word]) end)
-
-            state = Map.put(state, :user_word, Enum.join(user_word, ""))
-            state = Map.put(state, :guesses, state[:guesses] - 1)
-
-            case user_word |> Enum.any?(&(&1 == "_")) do
-              false ->
-                state = Map.put(state, :won, true)
-                {:reply, {:won, "Congratulations, you Won!"}, state}
-              _ ->
-                case String.contains?(state[:word], guess |> String.trim("\n")) do
-                  true -> {:reply, {:good_guess, "Good Guess!"}, state}
-                  _ -> {:reply, {:bad_guess, "Bad Guess!"}, state}
-                end
-            end
-          _ ->
-            {:reply, {:already_guessed, "Already guessed, please try again!"}, state}
-        end
-      _ ->
-        state = Map.put(state, :lost, true)
-        {:reply, {:lost, "Sorry, you lost!"}, state}
-    end
+    chances_remaining(more_guesses_allowed(state[:guesses]), guess, state)
   end
 
   def handle_call({:get_user_word}, _from, state) do
@@ -74,6 +51,44 @@ defmodule GameEngine do
 
   def handle_call({:guesses_allowed, guesses}, _from, state) do
     {:reply, more_guesses_allowed(guesses), state}
+  end
+
+  defp chances_remaining(true, guess, state) do
+    already_guessed = String.contains?(state[:user_word], guess |> String.trim("\n"))
+    already_guessed_letter(already_guessed, guess, state)
+  end
+
+  defp chances_remaining(false, _guess, state) do
+    state = Map.put(state, :lost, true)
+    {:reply, {:lost, "Sorry, you lost!"}, state}
+  end
+
+  defp already_guessed_letter(true, _guess, state) do
+    {:reply, {:already_guessed, "Already guessed, please try again!"}, state}
+  end
+
+  defp already_guessed_letter(false, guess, state) do
+    user_word = extract_user_word(state, guess)
+    state = Map.put(state, :user_word, Enum.join(user_word, ""))
+    user_won(Enum.any?(user_word, &(&1 == "_")), state, guess)
+  end
+
+  defp user_won(true, state, guess) do
+    case String.contains?(state[:word], guess |> String.trim("\n")) do
+      true -> {:reply, {:good_guess, "Good Guess!"}, state}
+      _ ->
+        state = Map.put(state, :guesses, state[:guesses] - 1)
+        {:reply, {:bad_guess, "Bad Guess!"}, state}
+    end
+  end
+
+  defp user_won(false, state, _guess) do
+    state = Map.put(state, :won, true)
+    {:reply, {:won, "Congratulations, you Won!"}, state}
+  end
+
+  defp extract_user_word(state, guess) do
+    state[:word] |> String.codepoints |> Enum.with_index |> Enum.map(fn({_x, index}) -> reveal_characters(guess |> String.trim("\n"), index, state[:user_word], state[:word]) end)
   end
 
   defp initial_user_word(word) do
@@ -85,7 +100,7 @@ defmodule GameEngine do
   end
 
   defp more_guesses_allowed(guesses) do
-    case guesses > 0 do
+    case guesses > 1 do
       true ->
         true
       _ ->
