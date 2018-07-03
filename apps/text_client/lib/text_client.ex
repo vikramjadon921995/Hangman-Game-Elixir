@@ -21,6 +21,7 @@ defmodule TextClient do
     IO.puts "#{state[:guesses]} guesses remaining."
     IO.puts "UserWord: #{state[:user_word]}"
     guess = IO.gets "Make a guess : "
+    guess = String.downcase(guess)
     {round_result, message} = GameEngine.make_a_guess(engine, guess)
     IO.puts "Message: #{message}"
     unless round_result == :won || round_result == :lost do

@@ -24,6 +24,7 @@ defmodule GameEngine do
   def init(:ok) do
     {:ok, dictionary} = DynamicSupervisor.start_child(DictionarySupervisor, Dictionary)
     word = Dictionary.fetch_word(dictionary)
+    word = String.downcase(word)
     {:ok, %{word: word, user_word: initial_user_word(word), guesses: max_guesses(), won: nil, lost: nil, matched_count: 0}}
   end
 
