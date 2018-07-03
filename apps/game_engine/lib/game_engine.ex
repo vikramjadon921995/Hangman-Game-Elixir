@@ -1,5 +1,3 @@
-require IEx
-
 defmodule GameEngine do
   use GenServer
 
@@ -15,14 +13,6 @@ defmodule GameEngine do
 
   def make_a_guess(engine, guess) do
     GenServer.call(engine, {:make_a_guess, guess})
-  end
-
-  def get_user_word(engine) do
-    GenServer.call(engine, {:get_user_word})
-  end
-
-  def guesses_allowed(engine, number_of_guesses) do
-    GenServer.call(engine, {:guesses_allowed, number_of_guesses})
   end
 
   def state_of_engine(engine) do
@@ -43,14 +33,6 @@ defmodule GameEngine do
 
   def handle_call({:make_a_guess, guess}, _from, state) do
     chances_remaining(more_guesses_allowed(state[:guesses]), guess, state)
-  end
-
-  def handle_call({:get_user_word}, _from, state) do
-    {:reply, state[:user_word], state}
-  end
-
-  def handle_call({:guesses_allowed, guesses}, _from, state) do
-    {:reply, more_guesses_allowed(guesses), state}
   end
 
   defp chances_remaining(true, guess, state) do
