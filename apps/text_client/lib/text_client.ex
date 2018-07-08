@@ -2,7 +2,7 @@ defmodule TextClient do
   use Application
 
   def start(_type, _args) do
-    GameSupervisor.start_link([])
+    #GameSupervisor.start_link([])
     start_game()
     {:ok, self()}
   end
@@ -10,7 +10,8 @@ defmodule TextClient do
   defp start_game() do
     IO.puts ""
     IO.puts "Welcome to hangman game!"
-    {:ok, engine} = GameEngine.start_link([])
+    {:ok, engine} = DynamicSupervisor.start_child(GameEngineSupervisor, GameEngine)
+    #{:ok, engine} = GameEngine.start_link([])
     play(engine)
   end
 

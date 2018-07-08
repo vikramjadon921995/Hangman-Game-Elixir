@@ -4,7 +4,7 @@ defmodule Dictionary do
   @words ["elixir", "ruby", "erlang", "python", "java"]
 
   def start_link(_optns) do
-    Agent.start_link(fn -> words() end)
+    Agent.start_link(fn -> words() end, name: :named_dictionary)
   end
 
   def words do

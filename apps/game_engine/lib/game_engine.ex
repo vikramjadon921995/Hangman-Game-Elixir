@@ -1,3 +1,5 @@
+require IEx
+
 defmodule GameEngine do
   use GenServer
 
@@ -22,7 +24,7 @@ defmodule GameEngine do
   ## Server API
 
   def init(:ok) do
-    {:ok, dictionary} = DynamicSupervisor.start_child(DictionarySupervisor, Dictionary)
+    dictionary = get_dictionary()
     word = Dictionary.fetch_word(dictionary)
     word = String.downcase(word)
     {:ok, %{word: word, user_word: initial_user_word(word), guesses: max_guesses(), won: nil, lost: nil, matched_count: 0}}
@@ -34,6 +36,18 @@ defmodule GameEngine do
 
   def handle_call({:make_a_guess, guess}, _from, state) do
     chances_remaining(more_guesses_allowed(state[:guesses]), guess, state)
+  end
+
+  defp get_dictionary() do
+    reg_dictionary = Process.whereis(:named_dictionary)
+    case reg_dictionary do
+      nil ->
+        {:ok, dictionary} = Dictionary.start_link([])
+        Process.register dictionary, :named_dictionary
+        dictionary
+      _ ->
+        reg_dictionary
+    end
   end
 
   defp chances_remaining(true, guess, state) do
